@@ -1,0 +1,64 @@
+# Standard build definition number
+name: '$(date:yyyyMMdd).$(Hours)$(Minutes)$(Seconds)$(Rev:.rr)'
+
+# The pipeline should be invoked automatically when changing the main branch
+# as there are no policies defined
+# specific path build
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - src/HelloWorldTool/*
+    - eng/pipelines/hello.yml
+
+# The pipeline must be built against a Windows-based agent
+# because we may have the need to generate content for .NET Framework 
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  BuildPlatform: 'Any CPU'
+  BuildConfiguration: 'Release'
+  Version.MajorMinor: 1.0
+  Version.Revision: $[counter(variables['Version.MajorMinor'], 0)]
+  VersionNumber: '$(Version.MajorMinor).$(Version.Revision)'
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+steps:
+
+# Run a NuGet restore
+- script: dotnet restore src\HelloWorldTool\HelloWorldTool.sln
+  displayName: 'Restore NuGet Packages'
+
+# Build the solution
+- script: dotnet build src\HelloWorldTool\HelloWorldTool.sln --configuration $(BuildConfiguration) --no-restore --nologo
+  displayName: 'Build'
+
+# Create the NuGet package
+- script: |
+    dotnet pack src\HelloWorldTool\HelloWorldTool\HelloWorldTool.csproj ^
+      --configuration $(BuildConfiguration) ^
+      --output $(Build.ArtifactStagingDirectory) ^
+      --no-build ^
+      --nologo ^
+      -p:PackageVersion=$(VersionNumber)
+  displayName: 'Pack'
+
+# Publish the NuGet package as part of the artifacts
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish NuGet Package'
+  inputs:
+    ArtifactName: NuGet
+    
+# Distribute the NuGet package internally in Azure DevOps Artifacts
+- task: NuGetCommand@2
+  displayName: 'Publish Package in Azure DevOps'
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg'
+    nuGetFeedType: 'internal'
+    publishVstsFeed: '{{feed}}'
+    allowPackageConflicts: true

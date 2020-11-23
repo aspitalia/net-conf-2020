@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "EmailSenderTool": {
+      "commandName": "Project",
+      "commandLineArgs": "--mail-address \"matteot@aspitalia.com\" --display-name \"ASPItalia.com Bot\" --password \"mySuperSecretPwd\" --host \"smtp.office365.com\" --port 587 --subject \"Test\" --to \"matteot@aspitalia.com\" --body \"This is the body for a fake email\" --attachments \"\" "
+    }
+  }
+}

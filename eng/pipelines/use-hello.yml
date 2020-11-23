@@ -1,0 +1,79 @@
+# Standard build definition number
+name: '$(date:yyyyMMdd).$(Hours)$(Minutes)$(Seconds)$(Rev:.rr)'
+
+# I want to manually run the pipeline
+trigger: none
+
+parameters:
+- name: speaker
+  displayName: Select name
+  type: string
+  default: Matteo
+  values:
+  - Cristian
+  - Matteo
+  - Raffaele
+  - Stefano
+  - Daniele
+  - Marco
+  - Emanuele
+  - Morgan
+  - Angelo
+  - Alessandro
+- name: version
+  displayName: Package version
+  type: string
+  default: 1.0.0
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+
+- checkout: none
+
+# Create nuget config file if not exists
+- task: PowerShell@2
+  displayName: 'Generate NuGet.config file'
+  inputs:
+    targetType: 'inline'
+    pwsh: true
+    script: |      
+      $configFile= @"
+      <?xml version="1.0" encoding="utf-8"?>
+        <configuration>
+          <packageSources>
+          </packageSources>
+        </configuration>
+      "@
+      
+      $configFile | Out-File -FilePath nuget.config -Encoding UTF8
+
+# add OAIDP artifact package source
+- task: NuGetCommand@2
+  displayName: Add package source
+  inputs:
+    command: custom
+    arguments: 'sources Add -Name "conferenze" -Source "{{nuget_feed}}" -username any -password $(System.AccessToken) -ConfigFile nuget.config -StorePasswordInClearText'
+
+# Install the requirements for .NET 5
+- task: UseDotNet@2
+  displayName: Install .NET 5
+  inputs:
+    packageType: 'sdk'
+    version: '5.0.100'
+
+# Authenticate against the private nuget feed in Azure DevOps
+- task: NuGetAuthenticate@0
+  displayName: Authenticate on feed
+
+# We need to install the tool
+- script: dotnet tool install --tool-path tools Hello --version ${{ parameters.version }}
+  displayName: 'Install tool'
+  env:
+    DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+    DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+# When the tool is installed, then we can use it
+- pwsh: ./tools/hello-world-aspitalia ${{ parameters.speaker }}
+  displayName: 'Print hello'

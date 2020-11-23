@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "HelloWorldTool": {
+      "commandName": "Project",
+      "commandLineArgs": "Matteo"
+    }
+  }
+}
